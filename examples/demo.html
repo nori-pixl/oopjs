@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>oop-lib デモ</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; background: #0f172a; color: #e2e8f0; }
+  h1 { font-size: 1.4rem; }
+  pre { background: #1e293b; padding: 12px 16px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; }
+  .log-line { border-left: 3px solid #38bdf8; padding-left: 10px; margin: 4px 0; }
+</style>
+</head>
+<body>
+<h1>oop-lib デモ(ブラウザ / script タグ読み込み)</h1>
+<pre id="output"></pre>
+
+<!-- ビルド不要。このscriptタグ一つで window.OOP が使えるようになります -->
+<script src="../dist/oop-lib.js"></script>
+<script>
+  const out = document.getElementById('output');
+  function log(...args) {
+    out.innerHTML += args.join(' ') + '\n';
+  }
+
+  // ---- インターフェース ----
+  const Comparable = OOP.createInterface('Comparable', ['compareTo']);
+  class Money extends OOP.enforceInterfaces(Comparable)(Object) {
+    constructor(amount) { super(); this.amount = amount; }
+    compareTo(other) { return this.amount - other.amount; }
+  }
+  log('[Interface]', new Money(100).compareTo(new Money(30)));
+
+  // ---- 抽象クラス ----
+  class Shape extends OOP.abstractClass(Object, ['area']) {
+    describe() { return `面積: ${this.area().toFixed(2)}`; }
+  }
+  class Square extends Shape {
+    constructor(side) { super(); this.side = side; }
+    area() { return this.side * this.side; }
+  }
+  log('[Abstract]', new Square(4).describe());
+  try { new Shape(); } catch (e) { log('[Abstract] エラー捕捉:', e.message); }
+
+  // ---- Mixin ----
+  const Flyable = OOP.createMixin({ fly() { return this.name + 'が飛んでいます'; } });
+  class Animal { constructor(name) { this.name = name; } }
+  class Bird extends Flyable(Animal) {}
+  log('[Mixin]', new Bird('スズメ').fly());
+
+  // ---- シングルトン ----
+  class ConfigBase { constructor() { this.createdAt = Date.now(); } }
+  class Config extends OOP.singleton(ConfigBase) {}
+  log('[Singleton] 同一インスタンス?', new Config() === new Config());
+
+  // ---- イベントエミッター ----
+  const emitter = new OOP.EventEmitter();
+  emitter.on('greet', (name) => log('[EventEmitter] hello,', name));
+  emitter.emit('greet', 'nori');
+
+  // ---- オブザーバブル ----
+  class Player { constructor() { OOP.observable(this, 'hp', 100); } }
+  const player = new Player();
+  player.onHpChange((n, o) => log('[Observable] HP変化:', o, '->', n));
+  player.hp = 60;
+
+  // ---- 型チェック ----
+  const add = OOP.typed(['number', 'number'], 'number')((a, b) => a + b);
+  log('[TypeCheck] 1+2 =', add(1, 2));
+  try { add(1, 'x'); } catch (e) { log('[TypeCheck] エラー捕捉:', e.message); }
+</script>
+</body>
+</html>
