@@ -1,0 +1,31 @@
+{
+  "name": "oop-lib",
+  "version": "1.0.0",
+  "description": "JavaScriptのオブジェクト指向を強化する軽量ライブラリ(インターフェース/抽象クラス/Mixin/シングルトン/イベント/オブザーバブル/型チェック)",
+  "main": "dist/oop-lib.js",
+  "module": "src/index.js",
+  "type": "commonjs",
+  "exports": {
+    ".": {
+      "import": "./src/index.js",
+      "require": "./dist/oop-lib.js"
+    }
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "keywords": [
+    "oop",
+    "object-oriented",
+    "interface",
+    "abstract-class",
+    "mixin",
+    "singleton",
+    "event-emitter",
+    "observable"
+  ],
+  "license": "MIT",
+  "author": "",
+  "dependencies": {}
+}
