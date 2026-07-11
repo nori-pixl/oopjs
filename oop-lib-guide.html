@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>oop-lib — JavaScriptに設計図を持ち込む</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #0c2a47;
+    --paper-deep: #08192e;
+    --paper-card: #0f3153;
+    --line: #6fa8c9;
+    --line-strong: #9cc7e0;
+    --line-faint: rgba(111, 168, 201, 0.22);
+    --line-faintest: rgba(111, 168, 201, 0.09);
+    --ink: #eaf3f8;
+    --ink-dim: #9fbdd1;
+    --ink-dimmer: #7193aa;
+    --stamp: #e0672a;
+    --stamp-dim: rgba(224, 103, 42, 0.35);
+    --ok: #7fbf9d;
+    --serif-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --display: 'Space Grotesk', 'Noto Sans JP', sans-serif;
+    --body: 'Noto Sans JP', 'Space Grotesk', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background:
+      repeating-linear-gradient(0deg, var(--line-faintest) 0 1px, transparent 1px 24px),
+      repeating-linear-gradient(90deg, var(--line-faintest) 0 1px, transparent 1px 24px),
+      radial-gradient(ellipse at 50% -10%, var(--paper-card) 0%, var(--paper) 55%, var(--paper-deep) 100%);
+    color: var(--ink);
+    font-family: var(--body);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection { background: var(--stamp); color: var(--paper-deep); }
+
+  a { color: var(--line-strong); }
+
+  :focus-visible {
+    outline: 2px solid var(--stamp);
+    outline-offset: 3px;
+  }
+
+  /* ---- 四隅のレジストレーションマーク(製図の位置合わせ十字) ---- */
+  .register {
+    position: fixed;
+    width: 22px;
+    height: 22px;
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0.55;
+  }
+  .register::before, .register::after {
+    content: '';
+    position: absolute;
+    background: var(--line);
+  }
+  .register::before { width: 100%; height: 1px; top: 50%; left: 0; }
+  .register::after { width: 1px; height: 100%; left: 50%; top: 0; }
+  .register.tl { top: 14px; left: 14px; }
+  .register.tr { top: 14px; right: 14px; }
+  .register.bl { bottom: 14px; left: 14px; }
+  .register.br { bottom: 14px; right: 14px; }
+
+  .wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  /* ---- ヘッダー ---- */
+  header.top {
+    padding: 22px 0;
+    border-bottom: 1px solid var(--line-faint);
+  }
+  header.top .wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .brand {
+    font-family: var(--serif-mono);
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    color: var(--ink-dim);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--stamp); display: inline-block; }
+  .revtag {
+    font-family: var(--serif-mono);
+    font-size: 11px;
+    color: var(--ink-dimmer);
+    border: 1px solid var(--line-faint);
+    padding: 4px 10px;
+    border-radius: 2px;
+    letter-spacing: 0.06em;
+  }
+
+  /* ---- ヒーロー ---- */
+  .hero {
+    padding: 72px 0 56px;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 40px;
+    align-items: center;
+  }
+  .hero .eyebrow {
+    font-family: var(--serif-mono);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    color: var(--stamp);
+    text-transform: uppercase;
+    margin: 0 0 14px;
+  }
+  h1.title {
+    font-family: var(--display);
+    font-size: clamp(40px, 6vw, 60px);
+    line-height: 1.05;
+    font-weight: 700;
+    margin: 0 0 20px;
+    color: var(--ink);
+  }
+  h1.title em {
+    font-style: normal;
+    color: var(--line-strong);
+    border-bottom: 3px solid var(--stamp);
+  }
+  .hero p.lead {
+    font-size: 17px;
+    color: var(--ink-dim);
+    max-width: 46ch;
+    margin: 0 0 26px;
+  }
+  .hero .facts {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    font-family: var(--serif-mono);
+    font-size: 12.5px;
+    color: var(--ink-dimmer);
+  }
+  .hero .facts span b { color: var(--ink-dim); font-weight: 600; }
+
+  /* ---- ヒーロー図面(SVG) ---- */
+  .blueprint-figure {
+    border: 1px solid var(--line-faint);
+    background: var(--line-faintest);
+    border-radius: 3px;
+    padding: 18px;
+    position: relative;
+  }
+  .blueprint-figure .cap {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--serif-mono);
+    font-size: 10.5px;
+    color: var(--ink-dimmer);
+    letter-spacing: 0.05em;
+    margin-bottom: 10px;
+  }
+  .blueprint-figure svg { width: 100%; height: auto; display: block; }
+  .draw-line {
+    fill: none;
+    stroke: var(--line-strong);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 700;
+    stroke-dashoffset: 700;
+    animation: draw 2.4s ease-out forwards;
+  }
+  .draw-line.d2 { animation-delay: 0.35s; }
+  .draw-line.d3 { animation-delay: 0.7s; }
+  .draw-fade {
+    opacity: 0;
+    animation: fadein 0.6s ease-out forwards;
+    animation-delay: 1.5s;
+  }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes fadein { to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    .draw-line { animation: none; stroke-dashoffset: 0; }
+    .draw-fade { animation: none; opacity: 1; }
+  }
+  .fig-label { font-family: var(--serif-mono); font-size: 9px; fill: var(--ink-dimmer); letter-spacing: 0.04em; }
+  .fig-text { font-family: var(--serif-mono); font-size: 10px; fill: var(--ink-dim); }
+  .fig-strong { font-family: var(--serif-mono); font-size: 11px; fill: var(--ink); }
+
+  /* ---- 注記(コールアウト) ---- */
+  .callout {
+    margin: 8px 0 64px;
+    border: 1px dashed var(--line-faint);
+    border-radius: 3px;
+    padding: 20px 22px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  .callout .stamp-badge {
+    font-family: var(--serif-mono);
+    font-size: 10px;
+    color: var(--stamp);
+    border: 1px solid var(--stamp-dim);
+    padding: 5px 9px;
+    border-radius: 2px;
+    white-space: nowrap;
+    letter-spacing: 0.05em;
+  }
+  .callout p { margin: 0 0 10px; color: var(--ink-dim); font-size: 14.5px; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout code, pre code {
+    font-family: var(--serif-mono);
+  }
+  .callout .codebox {
+    background: var(--paper-deep);
+    border: 1px solid var(--line-faint);
+    border-radius: 3px;
+    padding: 12px 14px;
+    font-size: 12.5px;
+    color: var(--line-strong);
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  /* ---- セクション見出し(図面プレート様式) ---- */
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin: 0 0 8px;
+  }
+  .section-head .plate {
+    font-family: var(--serif-mono);
+    font-size: 12px;
+    color: var(--stamp);
+    letter-spacing: 0.08em;
+  }
+  .section-head h2 {
+    font-family: var(--display);
+    font-size: 26px;
+    margin: 0;
+    color: var(--ink);
+  }
+  .section-sub {
+    color: var(--ink-dim);
+    max-width: 62ch;
+    margin: 0 0 40px;
+    font-size: 15px;
+  }
+  .rule {
+    border: none;
+    border-top: 1px dashed var(--line-faint);
+    margin: 64px 0 40px;
+  }
+
+  /* ---- パーツカタログ(10要素) ---- */
+  .catalog {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+    margin-bottom: 20px;
+  }
+  .part {
+    border: 1px solid var(--line-faint);
+    background: linear-gradient(180deg, var(--line-faintest), transparent 40%);
+    border-radius: 3px;
+    padding: 20px 20px 18px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.5s ease, transform 0.5s ease, border-color 0.2s ease;
+  }
+  .part.visible { opacity: 1; transform: translateY(0); }
+  .part:hover { border-color: var(--line); }
+  @media (prefers-reduced-motion: reduce) {
+    .part { opacity: 1; transform: none; transition: none; }
+  }
+  .part .phead {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .part .picon {
+    width: 34px; height: 34px;
+    flex: none;
+    color: var(--line-strong);
+  }
+  .part .picon svg { width: 100%; height: 100%; }
+  .part .plate-no {
+    font-family: var(--serif-mono);
+    font-size: 10.5px;
+    color: var(--stamp);
+    letter-spacing: 0.06em;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .part h3 {
+    font-family: var(--display);
+    font-size: 16.5px;
+    margin: 0;
+    color: var(--ink);
+  }
+  .part h3 small {
+    display: block;
+    font-family: var(--serif-mono);
+    font-size: 10.5px;
+    color: var(--ink-dimmer);
+    font-weight: 400;
+    margin-top: 2px;
+  }
+  .part p.desc {
+    font-size: 13.5px;
+    color: var(--ink-dim);
+    margin: 0 0 12px;
+  }
+  .part .snip {
+    background: var(--paper-deep);
+    border: 1px solid var(--line-faint);
+    border-radius: 3px;
+    padding: 11px 12px;
+    font-family: var(--serif-mono);
+    font-size: 12px;
+    color: var(--line-strong);
+    overflow-x: auto;
+    white-space: pre;
+    line-height: 1.55;
+  }
+  .snip .k { color: var(--stamp); }
+  .snip .s { color: var(--ok); }
+  .snip .c { color: var(--ink-dimmer); }
+
+  @media (max-width: 760px) {
+    .hero { grid-template-columns: 1fr; padding-top: 48px; }
+    .catalog { grid-template-columns: 1fr; }
+    .callout { grid-template-columns: 1fr; }
+  }
+
+  /* ---- フッター ---- */
+  footer {
+    border-top: 1px solid var(--line-faint);
+    padding: 40px 0 60px;
+    margin-top: 40px;
+  }
+  footer .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+  footer h4 {
+    font-family: var(--serif-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.08em;
+    color: var(--ink-dimmer);
+    margin: 0 0 12px;
+    text-transform: uppercase;
+  }
+  .tree {
+    font-family: var(--serif-mono);
+    font-size: 12.5px;
+    color: var(--ink-dim);
+    line-height: 1.9;
+    white-space: pre;
+  }
+  .tree .file { color: var(--line-strong); }
+  .tree .comment { color: var(--ink-dimmer); }
+  footer .note {
+    font-size: 13px;
+    color: var(--ink-dimmer);
+  }
+  footer .note strong { color: var(--ink-dim); }
+  .footline {
+    margin-top: 34px;
+    padding-top: 18px;
+    border-top: 1px dashed var(--line-faint);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-family: var(--serif-mono);
+    font-size: 11px;
+    color: var(--ink-dimmer);
+  }
+  @media (max-width: 760px) {
+    footer .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="register tl"></div>
+<div class="register tr"></div>
+<div class="register bl"></div>
+<div class="register br"></div>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><span class="dot"></span>OOP-LIB — DECLARATIVE OBJECT DESIGN, JS</div>
+    <div class="revtag">REV. 1.0 &nbsp;/&nbsp; 依存ライブラリ: 0</div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <div>
+      <p class="eyebrow">Blueprint for JavaScript Objects</p>
+      <h1 class="title">JavaScriptに、<br><em>設計図</em>を持ち込む。</h1>
+      <p class="lead">
+        クラスは本来「データと手続きをまとめた設計図」のはず。oop-libは、
+        インターフェース・抽象クラス・多重継承・トレイト・真のプライベートフィールドまで、
+        素の<code style="font-family:var(--serif-mono);color:var(--line-strong)">class</code>構文だけでは足りない部分を、
+        宣言的なDSL <code style="font-family:var(--serif-mono);color:var(--line-strong)">oopjs</code> で補う軽量ライブラリです。
+      </p>
+      <div class="facts">
+        <span><b>0</b> 依存関係</span>
+        <span><b>10</b> のOOP要素に対応</span>
+        <span><b>ESM / CJS / ブラウザ</b> 全対応</span>
+        <span><b>ビルド不要</b></span>
+      </div>
+    </div>
+
+    <div class="blueprint-figure">
+      <div class="cap"><span>FIG. 00 — CLASS SCHEMATIC</span><span>SCALE 1:1</span></div>
+      <svg viewBox="0 0 320 240" xmlns="http://www.w3.org/2000/svg">
+        <!-- 外枠(クラス本体) -->
+        <rect class="draw-line" x="30" y="20" width="200" height="170" rx="2"/>
+        <!-- 見出し区切り線 -->
+        <line class="draw-line" x1="30" y1="56" x2="230" y2="56"/>
+        <line class="draw-line d2" x1="30" y1="120" x2="230" y2="120"/>
+        <!-- タイトル -->
+        <text x="42" y="42" class="fig-strong">class 人間</text>
+        <!-- フィールド -->
+        <text x="42" y="76" class="fig-text">- 名前: private</text>
+        <text x="42" y="94" class="fig-text">- 年齢: private</text>
+        <text x="42" y="112" class="fig-text">+ 種族: public</text>
+        <!-- メソッド -->
+        <text x="42" y="140" class="fig-text">+ 挨拶()</text>
+        <text x="42" y="158" class="fig-text">+ 年齢確認()</text>
+        <!-- 寸法線(量産できることの注記) -->
+        <line class="draw-line d3" x1="30" y1="205" x2="230" y2="205"/>
+        <line class="draw-line d3" x1="30" y1="199" x2="30" y2="211"/>
+        <line class="draw-line d3" x1="230" y1="199" x2="230" y2="211"/>
+        <text x="80" y="222" class="fig-label draw-fade">INSTANTIATE × N</text>
+        <!-- 右側:量産されるインスタンス -->
+        <rect class="draw-line d2" x="256" y="40" width="48" height="34" rx="2"/>
+        <rect class="draw-line d3" x="256" y="86" width="48" height="34" rx="2"/>
+        <rect class="draw-line d3" x="256" y="132" width="48" height="34" rx="2"/>
+        <text x="260" y="56" class="fig-label draw-fade">太郎</text>
+        <text x="260" y="102" class="fig-label draw-fade">花子</text>
+        <text x="260" y="148" class="fig-label draw-fade">次郎</text>
+      </svg>
+    </div>
+  </section>
+
+  <div class="callout">
+    <span class="stamp-badge">仕組みの注記</span>
+    <div>
+      <p>
+        <code style="font-family:var(--serif-mono)">oopjs.init("名前", () =&gt; { oopjs.名前 = 名前 })</code>
+        — 右辺の<code style="font-family:var(--serif-mono)">名前</code>はどこにも宣言されていない自由変数のはずですが、そのまま動きます。
+        コールバックを一度ソースコード化し、渡した文字列を<b style="color:var(--ink-dim)">実引数名として持つ本物の関数</b>に組み直して呼び出しているためです。
+        <code style="font-family:var(--serif-mono)">with</code>文もグローバル汚染も使いません。
+      </p>
+      <div class="codebox">fn = <span style="color:#e0672a">new</span> Function('oopjs', '名前', 'oopjs.名前 = 名前')
+fn(oopjsProxy, "太郎")  <span style="color:#7193aa">// "名前" が実引数として解決される</span></div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <span class="plate">§01</span>
+    <h2>部品カタログ — 10のOOP要素</h2>
+  </div>
+  <p class="section-sub">
+    オブジェクト指向の代表的な10要素を、すべて<code style="font-family:var(--serif-mono);color:var(--line-strong)">oopjs.class(...)</code>の中だけで表現できます。
+    多重継承・読み取り専用定数・method_missing的フォールバックなど、素の<code style="font-family:var(--serif-mono);color:var(--line-strong)">class</code>には無い機能も含みます。
+  </p>
+
+  <div class="catalog" id="catalog">
+
+    <article class="part">
+      <div class="phead">
+        <span class="picon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="8" y="8" width="26" height="20" rx="1"/><line x1="8" y1="17" x2="34" y2="17"/><circle cx="40" cy="12" r="2.4" fill="currentColor" stroke="none"/><circle cx="40" cy="22" r="2.4" fill="currentColor" stroke="none"/><circle cx="40" cy="32" r="2.4" fill="currentColor" stroke="none"/></svg></span>
+        <h3>クラス<small>FIG.01 / Class</small></h3>
+      </div>
+      <p class="desc">データ(属性)と手続き(メソッド)を1つにまとめる設計図。実体をいくらでも量産できる。</p>
+      <div class="snip"><span class="c">oopjs</span>.class(<span class="s">"Animal"</span>, () =&gt; {
+  oopjs.init(<span class="s">"name"</span>, () =&gt; { oopjs.name = name })
+})</div>
+    </article>
+
+    <article class="part">
+      <div class="phead">
+        <span class="picon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 22V15a10 10 0 0120 0v7"/><rect x="10" y="22" width="28" height="18" rx="2"/><circle cx="24" cy="30" r="2.5" fill="currentColor" stroke="none"/><line x1="24" y1="32.5" x2="24" y2="36"/></svg></span>
+        <h3>カプセル化<small>FIG.02 / Encapsulation</small></h3>
+      </div>
+      <p class="desc">内部データを隠し、限定されたメソッド経由のみでアクセスさせる。不正な書き換えを防ぐ。</p>
+      <div class="snip"><span class="c">oopjs</span>.private(<span class="s">"balance"</span>, () =&gt; {
+  oopjs.balance = <span class="k">0</span>
+})</div>
+    </article>
+
+    <article class="part">
+      <div class="phead">
+        <span class="picon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="18" y="6" width="12" height="9" rx="1"/><path d="M24 15v7M24 22H12M24 22h12"/><rect x="6" y="29" width="12" height="9" rx="1"/><rect x="30" y="29" width="12" height="9" rx="1"/></svg></span>
+        <h3>継承<small>FIG.03 / Inheritance</small></h3>
+      </div>
+      <p class="desc">既存クラスの性質を引き継いで拡張。共通コードの重複を減らす。複数指定で多重継承も可能。</p>
+      <div class="snip"><span class="c">oopjs</span>.class(<span class="s">"Duck"</span>, () =&gt; {
+  oopjs.extends(<span class="s">"Flyer"</span>, <span class="s">"Swimmer"</span>)
+})</div>
+    </article>
+
+    <article class="part">
+      <div class="phead">
+        <span class="picon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="24,6 40,15 40,33 24,42 8,33 8,15"/><circle cx="24" cy="24" r="5"/><rect x="30" y="12" width="6" height="6"/><path d="M12 30l4 4 4-4"/></svg></span>
+        <h3>ポリモーフィズム<small>FIG.04 / Polymorphism</small></h3>
+      </div>
+      <p class="desc">同じ名前のメソッドが、オブジェクトごとに違う振る舞いをする。呼び出し側のif分岐を減らせる。</p>
+      <div class="snip">shapes.map(s =&gt; s.area())
+<span class="c">// Circle→円の面積 / Square→正方形の面積</span></div>
+    </article>
+
+    <article class="part">
+      <div class="phead">
+        <span class="picon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="16" width="12" height="16" rx="1.5"/><rect x="30" y="16" width="12" height="16" rx="1.5"/><line x1="18" y1="24" x2="30" y2="24" stroke-dasharray="3 3"/></svg></span>
+        <h3>インターフェース<small>FIG.05 / Interface</small></h3>
+      </div>
+      <p class="desc">実装を持たず、持つべきメソッドの規約だけを定義。設計と実装を分離し、結合度を下げる。</p>
+      <div class="snip"><span class="c">const</span> Comparable = createInterface(<span class="s">"Comparable"</span>, [<span class="s">"compareTo"</span>])
+oopjs.implements(Comparable) <span class="c">// 未実装は定義時にエラー</span></div>
+    </article>
+
+    <article class="part">
+      <div class="phead">
+        <span class="picon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 3"><rect x="10" y="8" width="28" height="20" rx="1"/></svg><svg viewBox="0 0 48 48" style="margin-left:-48px" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="16" y1="35" x2="32" y2="35"/><line x1="16" y1="41" x2="26" y2="41"/></svg></span>
+        <h3>抽象クラス<small>FIG.06 / Abstract Class</small></h3>
+      </div>
+      <p class="desc">具体的な実装と、サブクラスに強制したい抽象メソッドを混在させる。共通処理を担保する。</p>
+      <div class="snip"><span class="c">oopjs</span>.class(<span class="s">"Shape"</span>, () =&gt; {
+  oopjs.abstract(<span class="s">"area"</span>) <span class="c">// 未実装ならnew時にエラー</span>
+})</div>
+    </article>
+
+    <article class="part">
+      <div class="phead">
+        <span class="picon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 30c0-9 6-16 15-16 8 0 12 5 15 5 3 0 4-2 4-2s-1 6-6 7c2 2 3 5 3 5s-4 1-7-1c-2 5-8 8-15 8-5 0-9-2-9-6z"/><circle cx="16" cy="22" r="1.2" fill="currentColor" stroke="none"/></svg></span>
+        <h3>ダックタイピング<small>FIG.07 / Duck Typing</small></h3>
+      </div>
+      <p class="desc">継承関係に関わらず、同じメソッドを持っていれば同種として扱う。柔軟で、明示的な宣言を省ける。</p>
+      <div class="snip">oopjsDuck(obj, [<span class="s">"fly"</span>])
+<span class="c">// 継承もinstanceofも見ない、メソッドの有無だけ</span></div>
+    </article>
+
+    <article class="part">
+      <div class="phead">
+        <span class="picon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 18h14v14H10a4 4 0 010-8 4 4 0 010-6z"/><path d="M24 18h14a4 4 0 010 8 4 4 0 010 6H24z"/></svg></span>
+        <h3>トレイト / モジュール<small>FIG.08 / Trait</small></h3>
+      </div>
+      <p class="desc">多重継承の弊害を避けつつ、複数クラスでメソッド群を再利用。機能を部品化して混ぜ込む。</p>
+      <div class="snip"><span class="c">oopjs</span>.trait(<span class="s">"Loggable"</span>, () =&gt; { ... })
+oopjs.use(<span class="s">"Loggable"</span>, <span class="s">"Timestamped"</span>)</div>
+    </article>
+
+    <article class="part">
+      <div class="phead">
+        <span class="picon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="8" width="36" height="30" rx="1.5"/><rect x="16" y="18" width="16" height="12" rx="1"/></svg></span>
+        <h3>コンポジション<small>FIG.09 / Composition</small></h3>
+      </div>
+      <p class="desc">継承ではなく、他のオブジェクトを属性として保持して使う。関係性を柔軟にし、実行時に差し替えられる。</p>
+      <div class="snip"><span class="c">oopjs</span>.has(<span class="s">"engine"</span>, () =&gt; <span class="k">new</span> oopjs.Engine())
+oopjs.method(<span class="s">"drive"</span>, () =&gt; oopjs.engine.start())</div>
+    </article>
+
+    <article class="part">
+      <div class="phead">
+        <span class="picon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M24 6l14 5v11c0 10-6 17-14 20-8-3-14-10-14-20V11z"/><circle cx="24" cy="22" r="4"/><line x1="24" y1="26" x2="24" y2="31"/></svg></span>
+        <h3>アクセス修飾子<small>FIG.10 / Access Modifiers</small></h3>
+      </div>
+      <p class="desc">private/publicなどメンバの公開範囲を制御。カプセル化を強固にし、意図しないバグを防ぐ。</p>
+      <div class="snip">無指定 = public
+oopjs.private(...) <span class="c">/ </span>oopjs.const(...) <span class="c">// 再代入で即エラー</span></div>
+    </article>
+
+  </div>
+
+  <hr class="rule">
+
+  <div class="section-head">
+    <span class="plate">§02</span>
+    <h2>使い方</h2>
+  </div>
+  <p class="section-sub">ビルド不要。ブラウザは<code style="font-family:var(--serif-mono);color:var(--line-strong)">&lt;script&gt;</code>タグ1つ、Node.jsはESM/CommonJS両対応です。</p>
+
+  <div class="callout" style="margin-bottom:56px">
+    <span class="stamp-badge">最小の例</span>
+    <div class="codebox">&lt;script src="dist/oop-lib.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  oopjs.class("Person", () =&gt; {
+    oopjs.init("name", () =&gt; { oopjs.name = name })
+    oopjs.method("greet", () =&gt; `こんにちは、${oopjs.name}です`)
+  })
+  const p = new oopjs.Person("Nori")
+  console.log(p.greet())
+&lt;/script&gt;</div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <h4>ファイル構成</h4>
+        <div class="tree">oop-lib/
+├─ <span class="file">src/</span>        <span class="comment">ESモジュール版ソース(機能別)</span>
+├─ <span class="file">dist/oop-lib.js</span>  <span class="comment">ビルド不要のUMDバンドル</span>
+└─ <span class="file">examples/</span>   <span class="comment">Node.js / ブラウザの動作デモ</span></div>
+      </div>
+      <div>
+        <h4>注記</h4>
+        <p class="note">
+          <strong>oopjs DSLは実験的機能です。</strong>Proxyと動的な関数再構築を使うため、
+          通常の<code style="font-family:var(--serif-mono)">class</code>構文よりデバッグはしづらくなります。
+          学習用途や、遊び心のあるプロトタイピング向けとして設計されています。
+        </p>
+      </div>
+    </div>
+    <div class="footline">
+      <span>oop-lib — 依存ゼロの軽量OOP拡張ライブラリ</span>
+      <span>LICENSE: MIT</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // パーツカタログの出現アニメーション(reduced-motionでは即表示)
+  const parts = document.querySelectorAll('.part');
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry, i) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => entry.target.classList.add('visible'), i % 2 === 0 ? 0 : 90);
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    parts.forEach((p) => io.observe(p));
+  } else {
+    parts.forEach((p) => p.classList.add('visible'));
+  }
+</script>
+
+</body>
+</html>
